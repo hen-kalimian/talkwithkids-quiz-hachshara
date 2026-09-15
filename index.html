@@ -222,7 +222,8 @@ function getQuestion(index, answers) {
   }
   if (index === 3) {
     var band = tenureBand(answers.tenure);
-    var prefix = 'בתור ' + answers.role + ', כבר ' + answers.tenure + ' בתחום: ';
+    var tenurePhrase = answers.tenure === 'פחות משנה' ? 'רק בהתחלה, פחות משנה בתחום' : 'כבר ' + answers.tenure + ' בתחום';
+    var prefix = 'בתור ' + answers.role + ', ' + tenurePhrase + ': ';
     if (band === 'new') {
       var r = getRole(answers);
       var core = r.type === 'clinical'
@@ -272,7 +273,11 @@ function getQuestion(index, answers) {
   }
   if (index === 7) {
     var amt = incomeAmountLabel(answers);
-    return { type: 'multiselect', id: 'feelings', title: 'תארי לעצמך סוף חודש: כל החשבונות שולמו, ויש לך עוד ' + amt + ' שנשארו בצד. מה קורה קודם? (אפשר לסמן כמה שרוצים)', options: [
+    var isMaxIncome = answers.income === 'הכי הרבה שאפשר, אני רצינית בקטע הזה';
+    var q8Title = isMaxIncome
+      ? 'תארי לעצמך סוף חודש: כל החשבונות שולמו, והגעת בדיוק לסכום שחלמת עליו. מה קורה קודם? (אפשר לסמן כמה שרוצים)'
+      : 'תארי לעצמך סוף חודש: כל החשבונות שולמו, ויש לך עוד ' + amt + ' שנשארו בצד. מה קורה קודם? (אפשר לסמן כמה שרוצים)';
+    return { type: 'multiselect', id: 'feelings', title: q8Title, options: [
       'לא בודקת שוב ושוב את היתרה בבנק',
       'לא נלחצת כשמגיע חיוב בלתי צפוי',
       'סוף סוף יש מרווח נשימה, לא רק "מכסה חורים"',
@@ -308,7 +313,11 @@ function getQuestion(index, answers) {
   }
   if (index === 12) {
     var amt2 = incomeAmountLabel(answers);
-    return { type: 'choice', id: 'timing', title: 'אז את שואפת ל-' + amt2 + ' נוספים בחודש: מתי היית רוצה להתחיל לקבל ילדים בפועל?', options: [
+    var isMaxIncome2 = answers.income === 'הכי הרבה שאפשר, אני רצינית בקטע הזה';
+    var timingTitle = isMaxIncome2
+      ? 'כאחת ששואפת לכמה שיותר תוספת בחודש: מתי היית רוצה להתחיל לקבל ילדים בפועל?'
+      : 'אז את שואפת ל-' + amt2 + ' נוספים בחודש: מתי היית רוצה להתחיל לקבל ילדים בפועל?';
+    return { type: 'choice', id: 'timing', title: timingTitle, options: [
       'מיד עם סיום ההכשרה, שעה אחת בשבוע ולהגביר בהדרגה', 'מיד, וישר כמה שעות בשבוע', 'רק אחרי שאני מרגישה בטוחה לגמרי', 'עדיין לא יודעת, בודקת אפשרויות'
     ]};
   }
