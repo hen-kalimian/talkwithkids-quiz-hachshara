@@ -279,7 +279,7 @@ function getQuestion(index, answers) {
         'הכנסה נוספת משמעותית', 'להיות עצמאית, לא תלויה במסגרת', 'להגיע ליותר ילדים ולהשפיע יותר', 'הכל ביחד'
       ]};
     }
-    var secondOption = isNonJobRoleText(answers) ? 'הכנסה משלי, לא תלויה באף אחד' : 'שכר שמשקף את המאמץ';
+    var secondOption = isNonJobRoleText(answers) ? 'הכנסה כספית שאני מרוויחה בעצמי' : 'שכר שמשקף את המאמץ';
     return { type: 'choice', id: 'deepen', title: 'מה הכי היה משנה לך את התחושה הזו?', options: [
       'הכרה מקצועית אמיתית', secondOption, 'שתיהן ביחד', 'לצאת למסלול שבו אני שולטת בעצמי, לא תלויה במערכת'
     ]};
