@@ -89,10 +89,22 @@ var LEAD_WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/Qt9lEQiyh8wgV
 var BACKUP_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLScP4ZuIZJehRtUaHa0EXUw5eMlKXokBn9faE9R1fSkBz2Wu8w/formResponse';
 var BACKUP_FORM_FIELDS = { name: 'entry.637486590', phone: 'entry.292114796' };
 
-// שולחת כטופס HTML אמיתי (POST רגיל, לא fetch) לתוך iframe מוסתר, בדיוק כמו
-// שדפדפן שולח טופס רגיל. זה נמנע מבעיות שיכולות לחסום בשקט בקשה שנשלחת
-// בדרך אחרת מתוך עמוד מוטמע - זו הסיבה הסבירה לכך שהניסיון הראשון לא הגיע
-// ל-Lead Connector בזמן שטפסי Wix Forms הרגילים כן עבדו.
+// בדקתי ישירות: ה-webhook של Lead Connector תומך ב-CORS מלא (Access-Control-Allow-Origin: *),
+// אז אפשר לשלוח אליו fetch רגיל עם JSON תקין ולקבל גם תשובה אמיתית בחזרה.
+// הבעיה המקורית לא הייתה חסימה, אלא שימוש ב-mode:'no-cors' שגרם לדפדפן למחוק
+// בשקט את כותרת ה-Content-Type, כך שהשרת לא פירש נכון את הנתונים שהגיעו.
+function sendJson(url, data) {
+  return fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  }).catch(function (e) {
+    console.warn('[quiz] fetch to webhook failed', url, e);
+  });
+}
+
+// לטפסים שלא תומכים ב-CORS (כמו Google Forms) - שולחת כטופס HTML אמיתי לתוך
+// iframe מוסתר, בדיוק כמו שדפדפן שולח טופס רגיל.
 function submitHiddenForm(url, fields) {
   try {
     var iframe = document.createElement('iframe');
@@ -127,11 +139,11 @@ function submitHiddenForm(url, fields) {
 
 function sendLeadToWebhook(name, phone, answers) {
   if (LEAD_WEBHOOK_URL && LEAD_WEBHOOK_URL.indexOf('PASTE_') !== 0) {
-    submitHiddenForm(LEAD_WEBHOOK_URL, {
+    sendJson(LEAD_WEBHOOK_URL, {
       name: name,
       phone: phone,
       source: 'quiz-hachshara',
-      answers: JSON.stringify(answers)
+      answers: answers
     });
   } else {
     console.warn('[quiz] LEAD_WEBHOOK_URL not set - lead not sent to Lead Connector.', { name: name, phone: phone });
