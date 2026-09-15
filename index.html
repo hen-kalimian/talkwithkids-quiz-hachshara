@@ -192,6 +192,26 @@ function getRole(answers) {
   return found || roles[roles.length - 1];
 }
 
+var KNOWN_ROLES = ['גננת', 'מורה', 'קלינאית תקשורת', 'מרפאה בעיסוק', 'סייעת', 'מדריכת הורים'];
+
+// מזהה תשובת "אחר" חופשית שמתארת סטטוס בלי הכנסה/משרה (אמא בבית, חופשת לידה
+// וכו') - כדי שהשאלות הבאות לא ישאלו על "שכר" למי שאין לה כזה.
+function isNonJobRoleText(answers) {
+  if (!answers.role || KNOWN_ROLES.indexOf(answers.role) !== -1) return false;
+  var t = answers.role;
+  var keywords = ['אמא', 'אימא', 'אבא', 'הורה', 'הורים', 'עקרת בית', 'לא עובדת', 'לא עובד', 'חופשת לידה', 'בבית'];
+  for (var i = 0; i < keywords.length; i++) {
+    if (t.indexOf(keywords[i]) !== -1) return true;
+  }
+  return false;
+}
+
+// לתצוגה בתוך "בתור X, כבר...": אם היא כתבה משפט שלם ("אני בחופשת לידה"),
+// מורידים את ה"אני" הפותח כדי שהמשפט המורכב יזרום קצת יותר טוב.
+function roleForPrefix(answers) {
+  return (answers.role || '').replace(/^אני\s+/, '');
+}
+
 function incomeAmountLabel(answers) {
   var map = {
     '1,000 ₪+ (רק כדי להתחיל, בקצב שלי)': '1,000 ₪',
@@ -223,7 +243,7 @@ function getQuestion(index, answers) {
   if (index === 3) {
     var band = tenureBand(answers.tenure);
     var tenurePhrase = answers.tenure === 'פחות משנה' ? 'רק בהתחלה, פחות משנה בתחום' : 'כבר ' + answers.tenure + ' בתחום';
-    var prefix = 'בתור ' + answers.role + ', ' + tenurePhrase + ': ';
+    var prefix = 'בתור ' + roleForPrefix(answers) + ', ' + tenurePhrase + ': ';
     if (band === 'new') {
       var r = getRole(answers);
       var core = r.type === 'clinical'
@@ -233,7 +253,10 @@ function getQuestion(index, answers) {
         'כן, ממש בטוחה בעצמי', 'לרוב כן, אבל לפעמים מתלבטת', 'לא תמיד, זה תלוי בילד', 'לא ממש, אני עדיין לומדת את זה'
       ]};
     }
-    return { type: 'choice', id: 'appreciation', title: prefix + 'את מרגישה מוערכת בעבודה שלך היום, שהשכר משקף את המאמץ וההשקעה שלך?', options: [
+    var appreciationCore = isNonJobRoleText(answers)
+      ? 'את מרגישה שמעריכים אותך ואת המאמץ שלך היום, כמו שמגיע לך?'
+      : 'את מרגישה מוערכת בעבודה שלך היום, שהשכר משקף את המאמץ וההשקעה שלך?';
+    return { type: 'choice', id: 'appreciation', title: prefix + appreciationCore, options: [
       'כן, לגמרי', 'חלקית', 'לא, ואני מרגישה את זה הרבה', 'ממש לא, וזה מתסכל אותי'
     ]};
   }
@@ -256,8 +279,9 @@ function getQuestion(index, answers) {
         'הכנסה נוספת משמעותית', 'להיות עצמאית, לא תלויה במסגרת', 'להגיע ליותר ילדים ולהשפיע יותר', 'הכל ביחד'
       ]};
     }
+    var secondOption = isNonJobRoleText(answers) ? 'הכנסה משלי, לא תלויה באף אחד' : 'שכר שמשקף את המאמץ';
     return { type: 'choice', id: 'deepen', title: 'מה הכי היה משנה לך את התחושה הזו?', options: [
-      'הכרה מקצועית אמיתית', 'שכר שמשקף את המאמץ', 'שתיהן ביחד', 'לצאת למסלול שבו אני שולטת בעצמי, לא תלויה במערכת'
+      'הכרה מקצועית אמיתית', secondOption, 'שתיהן ביחד', 'לצאת למסלול שבו אני שולטת בעצמי, לא תלויה במערכת'
     ]};
   }
   if (index === 5) {
