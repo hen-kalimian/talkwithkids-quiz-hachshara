@@ -91,10 +91,15 @@ function sendLeadToWebhook(name, phone, answers) {
   }
   // no-cors: ה-webhook לא בהכרח מחזיר CORS headers, אז אי אפשר לקרוא את
   // התשובה, אבל הבקשה עצמה כן נשלחת ומתקבלת בצד השרת (fire-and-forget).
+  // הערה חשובה: בבקשת no-cors הדפדפן שומר רק על 3 סוגי Content-Type "בטוחים"
+  // (text/plain, application/x-www-form-urlencoded, multipart/form-data) ומשמיט
+  // בשקט כל כותרת אחרת - כולל application/json. לכן משתמשים כאן ב-text/plain
+  // בפועל (עדיין עם תוכן JSON תקין בגוף הבקשה, שרוב מקבלי ה-webhook כמו
+  // GoHighLevel מצליחים לפרסר גם ככה), כדי שהכותרת תישלח כמו שהוצהרה.
   fetch(LEAD_WEBHOOK_URL, {
     method: 'POST',
     mode: 'no-cors',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
     body: JSON.stringify({ name: name, phone: phone, source: 'quiz-hachshara', answers: answers })
   }).catch(function (e) { console.warn('[quiz] lead webhook request failed', e); });
 }
@@ -158,21 +163,21 @@ function incomeAmountLabel(answers) {
 
 function getQuestion(index, answers) {
   if (index === 0) {
-    return { type: 'choice', id: 'motivation', title: 'מה הכי מושך אותך בלהעביר קבוצות הכנה לכיתה א׳?', options: [
+    return { type: 'choice', id: 'role', isRole: true, title: 'מה התפקיד שלך היום?', options: [
+      'גננת', 'מורה', 'קלינאית תקשורת', 'מרפאה בעיסוק', 'סייעת', 'מדריכת הורים', 'אחר'
+    ]};
+  }
+  if (index === 1) {
+    var role = getRole(answers);
+    return { type: 'choice', id: 'tenure', title: role.tenureQ, options: ['פחות משנה', '1-4 שנים', '5-10 שנים', 'יותר מ-10 שנים'] };
+  }
+  if (index === 2) {
+    return { type: 'choice', id: 'motivation', title: 'מה הכי מושך אותך בלהעביר קבוצות הכנה לכיתה א׳ ושיעורים פרטיים?', options: [
       'זו שליחות בשבילי, ואני גם רוצה שההכנסה תשקף את זה',
       'בעיקר מחפשת הכנסה נוספת משמעותית',
       'רוצה להרגיש שאני ממצה את היכולות שלי, לא רק "עוד עבודה"',
       'הכל ביחד'
     ]};
-  }
-  if (index === 1) {
-    return { type: 'choice', id: 'role', isRole: true, title: 'מה התפקיד שלך היום?', options: [
-      'גננת', 'מורה', 'קלינאית תקשורת', 'מרפאה בעיסוק', 'סייעת', 'מדריכת הורים', 'אחר'
-    ]};
-  }
-  if (index === 2) {
-    var role = getRole(answers);
-    return { type: 'choice', id: 'tenure', title: role.tenureQ, options: ['פחות משנה', '1-4 שנים', '5-10 שנים', 'יותר מ-10 שנים'] };
   }
   if (index === 3) {
     var band = tenureBand(answers.tenure);
