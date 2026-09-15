@@ -1,0 +1,530 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>בחני את עצמך - חן קלימיאן</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700&display=swap">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: 'Rubik', system-ui, sans-serif;
+    direction: rtl;
+    color: #3A342E;
+    background: linear-gradient(180deg,#FBF8F2 0%,#F1F8F4 100%);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 18px;
+  }
+  a { color: #4F9C82; text-decoration: none; }
+  a:hover { color: #3B7C67; }
+  #card {
+    max-width: 520px;
+    width: 100%;
+    background: #FFFFFF;
+    border-radius: 28px;
+    padding: 40px 30px;
+    box-shadow: 0 24px 60px rgba(58,52,46,.10);
+    position: relative;
+    overflow: hidden;
+  }
+  @media (max-width: 480px) {
+    body { padding: 20px 12px; }
+    #card { padding: 28px 20px; border-radius: 22px; }
+  }
+  .blob { position: absolute; z-index: 0; }
+  .content { position: relative; z-index: 1; }
+  .opt-btn {
+    display: block; width: 100%; text-align: right;
+    background: #FAFAF7; border: 2px solid #ECE7DE; border-radius: 16px;
+    padding: 16px 18px; margin-bottom: 12px;
+    font-family: 'Rubik', sans-serif; font-size: 16px; color: #3A342E;
+    cursor: pointer; transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+  }
+  .opt-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(58,52,46,.08); border-color: #C9DED6; }
+  .opt-btn:active { transform: translateY(0); }
+  .opt-btn.is-selected { border-color: #6FB79C; background: #EFF9F4; }
+  .cta-btn {
+    display: block; width: 100%; box-sizing: border-box; padding: 16px; border: none; border-radius: 16px;
+    background: #6FB79C; color: #fff; text-decoration: none; text-align: center;
+    font-family: 'Rubik', sans-serif; font-size: 17px; font-weight: 600; cursor: pointer;
+    transition: transform .12s ease, box-shadow .12s ease;
+  }
+  .cta-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(58,52,46,.14); }
+  .cta-btn[disabled] { opacity: .6; cursor: default; transform: none; box-shadow: none; }
+  .back-lnk {
+    margin-top: 6px; background: none; border: none; color: #9B9484;
+    font-family: 'Rubik', sans-serif; font-size: 14px; cursor: pointer; padding: 8px 2px;
+  }
+  .back-lnk:hover { color: #6B6459; }
+  .field {
+    width: 100%; padding: 14px 16px; border-radius: 14px; border: 2px solid #ECE7DE;
+    font-family: 'Rubik', sans-serif; font-size: 16px; margin-bottom: 12px; box-sizing: border-box;
+  }
+  .field::placeholder { color: #B7AF9F; }
+  input[type="range"] { width: 100%; margin-bottom: 10px; accent-color: #6FB79C; }
+</style>
+</head>
+<body>
+<div id="card">
+  <div class="blob" style="top:-64px;left:-64px;width:180px;height:180px;border-radius:46% 54% 60% 40%/50% 45% 55% 50%;background:#EAF6F1;opacity:.9;"></div>
+  <div class="blob" style="bottom:-74px;right:-54px;width:210px;height:210px;border-radius:60% 40% 45% 55%/55% 60% 40% 45%;background:#FCEFE0;opacity:.7;"></div>
+  <div class="blob" style="top:40%;right:-40px;width:90px;height:90px;border-radius:50% 50% 45% 55%/55% 45% 55% 45%;background:#FBE4EA;opacity:.6;"></div>
+  <div class="content" id="app"></div>
+</div>
+
+<script>
+// ============================================================
+// חיבור ה-Lead Webhook (Lead Connector / GoHighLevel)
+// הדביקי כאן את כתובת ה-webhook הקיימת שלך, ואז כל טופס שנשלח
+// מהשאלון הזה יגיע לאותה מערכת בדיוק כמו הטופס באתר ב-Wix.
+// ============================================================
+var LEAD_WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/Qt9lEQiyh8wgVPJM4d6Q/webhook-trigger/c006972a-59f5-40cc-83a5-382a3d491bb5';
+
+function sendLeadToWebhook(name, phone, answers) {
+  if (!LEAD_WEBHOOK_URL || LEAD_WEBHOOK_URL.indexOf('PASTE_') === 0) {
+    console.warn('[quiz] LEAD_WEBHOOK_URL not set yet - the lead was captured on screen only, not sent anywhere.', { name: name, phone: phone, answers: answers });
+    return;
+  }
+  // no-cors: ה-webhook לא בהכרח מחזיר CORS headers, אז אי אפשר לקרוא את
+  // התשובה, אבל הבקשה עצמה כן נשלחת ומתקבלת בצד השרת (fire-and-forget).
+  fetch(LEAD_WEBHOOK_URL, {
+    method: 'POST',
+    mode: 'no-cors',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: name, phone: phone, source: 'quiz-hachshara', answers: answers })
+  }).catch(function (e) { console.warn('[quiz] lead webhook request failed', e); });
+}
+
+// ============================================================
+// לוגיקת השאלון
+// ============================================================
+var state = {
+  screen: 'intro',
+  qIndex: 0,
+  answers: {},
+  pendingOther: false,
+  otherText: '',
+  sliderValue: 2,
+  msSelected: [false, false, false, false, false],
+  msOtherText: '',
+  leadName: '',
+  leadPhone: '',
+  leadError: false,
+  leadSubmitting: false
+};
+
+function trackEvent(name, data) {
+  try { console.log('[funnel_event]', name, data); } catch (e) {}
+}
+
+function tenureBand(v) {
+  return (v === '5-10 שנים' || v === 'יותר מ-10 שנים') ? 'veteran' : 'new';
+}
+function confidenceBand(v) {
+  return (v === 'כן, ממש בטוחה בעצמי' || v === 'לרוב כן, אבל לפעמים מתלבטת') ? 'confident' : 'unsure';
+}
+function apprBand(v) {
+  return v === 'כן, לגמרי' ? 'appreciated' : 'unappreciated';
+}
+
+function getRole(answers) {
+  var roles = [
+    { label: 'גננת', tenureQ: 'כמה שנים את עובדת כגננת?', type: 'teaching' },
+    { label: 'מורה', tenureQ: 'כמה שנים את מלמדת?', type: 'teaching' },
+    { label: 'קלינאית תקשורת', tenureQ: 'כמה שנות ניסיון קליני יש לך?', type: 'clinical' },
+    { label: 'מרפאה בעיסוק', tenureQ: 'כמה שנות ניסיון יש לך?', type: 'clinical' },
+    { label: 'סייעת', tenureQ: 'כמה שנים את עובדת כסייעת?', type: 'teaching' },
+    { label: 'מדריכת הורים', tenureQ: 'כמה שנים את מדריכה הורים?', type: 'teaching' },
+    { label: 'אחר', tenureQ: 'כמה שנות ניסיון יש לך בעבודה עם ילדים?', type: 'teaching' }
+  ];
+  var found = null;
+  for (var i = 0; i < roles.length; i++) { if (roles[i].label === answers.role) { found = roles[i]; break; } }
+  return found || roles[roles.length - 1];
+}
+
+function incomeAmountLabel(answers) {
+  var map = {
+    '1,000 ₪+ (רק כדי להתחיל, בקצב שלי)': '1,000 ₪',
+    '3,000 ₪ (קבוצת הכנה לכיתה א׳ אחת, שעה בשבוע)': '3,000 ₪',
+    '8,000-18,000 ₪ (כמה קבוצות או שיעורים פרטיים לילדים בגילי 5-8, 4-6 שעות בשבוע)': '8,000-18,000 ₪',
+    'הכי הרבה שאפשר, אני רצינית בקטע הזה': 'כמה שיותר'
+  };
+  return map[answers.income] || 'הסכום שבחרת';
+}
+
+function getQuestion(index, answers) {
+  if (index === 0) {
+    return { type: 'choice', id: 'motivation', title: 'מה הכי מושך אותך בלהעביר קבוצות הכנה לכיתה א׳?', options: [
+      'זו שליחות בשבילי, ואני גם רוצה שההכנסה תשקף את זה',
+      'בעיקר מחפשת הכנסה נוספת משמעותית',
+      'רוצה להרגיש שאני ממצה את היכולות שלי, לא רק "עוד עבודה"',
+      'הכל ביחד'
+    ]};
+  }
+  if (index === 1) {
+    return { type: 'choice', id: 'role', isRole: true, title: 'מה התפקיד שלך היום?', options: [
+      'גננת', 'מורה', 'קלינאית תקשורת', 'מרפאה בעיסוק', 'סייעת', 'מדריכת הורים', 'אחר'
+    ]};
+  }
+  if (index === 2) {
+    var role = getRole(answers);
+    return { type: 'choice', id: 'tenure', title: role.tenureQ, options: ['פחות משנה', '1-4 שנים', '5-10 שנים', 'יותר מ-10 שנים'] };
+  }
+  if (index === 3) {
+    var band = tenureBand(answers.tenure);
+    var prefix = 'בתור ' + answers.role + ', כבר ' + answers.tenure + ' בתחום: ';
+    if (band === 'new') {
+      var r = getRole(answers);
+      var core = r.type === 'clinical'
+        ? 'מול ילד שמתקשה, מרגיש לך טבעי למצוא את הדרך הנכונה בשבילו?'
+        : 'במפגש עם הילדים, מרגיש לך טבעי לדבר איתם וללמד אותם?';
+      return { type: 'choice', id: 'confidence', title: prefix + core, options: [
+        'כן, ממש בטוחה בעצמי', 'לרוב כן, אבל לפעמים מתלבטת', 'לא תמיד, זה תלוי בילד', 'לא ממש, אני עדיין לומדת את זה'
+      ]};
+    }
+    return { type: 'choice', id: 'appreciation', title: prefix + 'את מרגישה מוערכת בעבודה שלך היום, שהשכר משקף את המאמץ וההשקעה שלך?', options: [
+      'כן, לגמרי', 'חלקית', 'לא, ואני מרגישה את זה הרבה', 'ממש לא, וזה מתסכל אותי'
+    ]};
+  }
+  if (index === 4) {
+    var band2 = tenureBand(answers.tenure);
+    if (band2 === 'new') {
+      var cband = confidenceBand(answers.confidence);
+      if (cband === 'confident') {
+        return { type: 'choice', id: 'deepen', title: 'אז מה בעיקר עוצר אותך מלפתוח כבר עכשיו קבוצה משלך?', options: [
+          'לא יודעת איך לשווק את עצמי', 'לא בטוחה שיש לי שיטה מסודרת, לא רק אינטואיציה', 'פשוט לא ידעתי שזה אפשרי, מאיפה להתחיל', 'שום דבר, פשוט לא התחלתי עדיין'
+        ]};
+      }
+      return { type: 'choice', id: 'deepen', title: 'מה הכי גורם לך להרגיש פחות בטוחה?', options: [
+        'התמודדות עם ילדים מאתגרים או עם קשיי למידה', 'לא בטוחה שהשיטות שלי הכי טובות', 'חוששת מתגובת ההורים אם משהו לא ילך חלק', 'בכלל לא בטוחה שיש לי את זה'
+      ]};
+    }
+    var aband = apprBand(answers.appreciation);
+    if (aband === 'appreciated') {
+      return { type: 'choice', id: 'deepen', title: 'אז מה כן ימשוך אותך לקחת צעד נוסף?', options: [
+        'הכנסה נוספת משמעותית', 'להיות עצמאית, לא תלויה במסגרת', 'להגיע ליותר ילדים ולהשפיע יותר', 'הכל ביחד'
+      ]};
+    }
+    return { type: 'choice', id: 'deepen', title: 'מה הכי היה משנה לך את התחושה הזו?', options: [
+      'הכרה מקצועית אמיתית', 'שכר שמשקף את המאמץ', 'שתיהן ביחד', 'לצאת למסלול שבו אני שולטת בעצמי, לא תלויה במערכת'
+    ]};
+  }
+  if (index === 5) {
+    return { type: 'slider', id: 'selfBelief', title: 'נשים בתוכנית עברו משעה אחת בשבוע (3,000 ₪) ועד 8,000-18,000 ₪ בחודש. את, כמה מקום את מרגישה שיש לך להשיג מעבר למה שיש לך היום?' };
+  }
+  if (index === 6) {
+    return { type: 'choice', id: 'income', title: 'כמה היית רוצה להוסיף להכנסה החודשית שלך?', options: [
+      '1,000 ₪+ (רק כדי להתחיל, בקצב שלי)',
+      '3,000 ₪ (קבוצת הכנה לכיתה א׳ אחת, שעה בשבוע)',
+      '8,000-18,000 ₪ (כמה קבוצות או שיעורים פרטיים לילדים בגילי 5-8, 4-6 שעות בשבוע)',
+      'הכי הרבה שאפשר, אני רצינית בקטע הזה'
+    ]};
+  }
+  if (index === 7) {
+    var amt = incomeAmountLabel(answers);
+    return { type: 'multiselect', id: 'feelings', title: 'תארי לעצמך סוף חודש: כל החשבונות שולמו, ויש לך עוד ' + amt + ' שנשארו בצד. מה קורה קודם? (אפשר לסמן כמה שרוצים)', options: [
+      'לא בודקת שוב ושוב את היתרה בבנק',
+      'לא נלחצת כשמגיע חיוב בלתי צפוי',
+      'סוף סוף יש מרווח נשימה, לא רק "מכסה חורים"',
+      'מרגישה שהמאמץ שלי באמת משתלם',
+      'גאה בעצמי שהצלחתי לשנות את זה'
+    ]};
+  }
+  if (index === 8) {
+    return { type: 'choice', id: 'pastFear', title: 'קרה לך בעבר שלמדת קורס או הכשרה, התלהבת, אבל בסוף לא ממש יישמת?', options: [
+      'כן, כמה פעמים', 'קצת', 'לא, אני בדרך כלל מיישמת'
+    ]};
+  }
+  if (index === 9) {
+    return { type: 'choice', id: 'bizFear', title: 'מה הכי מפחיד אותך בלפתוח את זה כעסק?', options: [
+      'לשווק את עצמי', 'הביטחון המקצועי מול ילדים מאתגרים', 'למצוא את הזמן', 'כלום, אני מוכנה'
+    ]};
+  }
+  if (index === 10) {
+    return { type: 'choice', id: 'timeForMaterials', title: 'כמה זמן פנוי יש לך היום ליצור חומרי לימוד ותוכן לקבוצה?', options: [
+      'יש לי זמן, אני אוהבת ליצור בעצמי',
+      'קצת, אבל אני מעדיפה למקד את הזמן שלי בילדים ולא בהכנות',
+      'אין לי זמן, אני מעדיפה שהכל יהיה מוכן וברמה גבוהה',
+      'לא חשבתי על זה עד עכשיו'
+    ]};
+  }
+  if (index === 11) {
+    return { type: 'choice', id: 'community', title: 'היית רוצה לקחת חלק בקהילה שבה תמיד אפשר להתייעץ, לדבר על כסף ואתגרים מקצועיים ולקבל מענה, או שאת מעדיפה לעשות הכל בעצמך?', options: [
+      'כן, ליווי וקהילה זה בדיוק מה שיחסר לי',
+      'זה יכול לעזור, אבל אני גם עצמאית',
+      'אני מעדיפה לעשות דברים לבד',
+      'לא חשבתי על זה'
+    ]};
+  }
+  if (index === 12) {
+    var amt2 = incomeAmountLabel(answers);
+    return { type: 'choice', id: 'timing', title: 'אז את שואפת ל-' + amt2 + ' נוספים בחודש: מתי היית רוצה להתחיל לקבל ילדים בפועל?', options: [
+      'מיד עם סיום ההכשרה, שעה אחת בשבוע ולהגביר בהדרגה', 'מיד, וישר כמה שעות בשבוע', 'רק אחרי שאני מרגישה בטוחה לגמרי', 'עדיין לא יודעת, בודקת אפשרויות'
+    ]};
+  }
+  return { type: 'choice', id: 'stayingPut', title: 'תארי לעצמך שעוד שנה את בדיוק באותו מקום שאת בו היום. מה עולה אצלך?', options: [
+    'אני אתאכזב מעצמי',
+    'אני ממש לא רוצה להישאר באותו מקום',
+    'לא אכפת לי להישאר במקום, אין לי לחץ',
+    'לא חשבתי על זה ככה'
+  ]};
+}
+
+var TOTAL_STEPS = 14;
+
+function buildResultText(base, answers) {
+  var text = base;
+  if (answers.timeForMaterials === 'אין לי זמן, אני מעדיפה שהכל יהיה מוכן וברמה גבוהה') {
+    text += ' בדיוק בשביל זה כל החומרים בתוכנית כבר מוכנים ברמה גבוהה, שיעור אחרי שיעור: את לא בונה שום דבר מאפס.';
+  }
+  if (answers.community === 'כן, ליווי וקהילה זה בדיוק מה שיחסר לי') {
+    text += ' ואת לא עושה את זה לבד: יש קבוצת ליווי קהילתית ופגישות זום קבוצתיות לאורך כל השנה הראשונה.';
+  }
+  return text;
+}
+
+function getResult(answers) {
+  var band = tenureBand(answers.tenure);
+  var base;
+  if (band === 'new') {
+    var cband = confidenceBand(answers.confidence);
+    base = cband === 'confident'
+      ? { title: 'הכוכבת הבאה', text: 'את עוד בהתחלת הדרך המקצועית, אבל כבר עכשיו יש לך את מה שהכי קשה להקנות: ביטחון טבעי מול ילדים. זה בדיוק המקום שבו רוב הנשים שמצליחות פותחות קבוצת הכנה לכיתה א׳ ראשונה, לא כשיש להן יותר ניסיון, אלא כשיש להן שיטה מסודרת שהן פשוט מיישמות במקום להמציא הכל לבד. עם קבוצה אחת בשבוע כבר אפשר להוסיף כ-3,000 ₪ בחודש, ועם שתי קבוצות או שילוב שיעורים פרטיים אפשר להגיע הרבה יותר גבוה, בלי לוותר על הזמן שלך עם המשפחה. את בדיוק הטיפוס שקופץ קדימה מהר כשיש לו את הכלים הנכונים. השאלה היחידה שנשארה היא איך מתחילים נכון, לא אם יש לך את זה.' }
+      : { title: 'המחפשת קרקע יציבה', text: 'את בהתחלת הדרך, ולפעמים זה מרגיש כמו יותר מדי לבד. זה נורמלי לגמרי: הביטחון לא בא מעוד שנים של ניסיון וטעייה, הוא בא משיטה מסודרת וכלים מוכנים שאת פשוט מיישמת, בלי לבנות הכל מאפס בעצמך. השיטה בנויה כך שהיא נותנת מענה גם לילדים מאתגרים ולקשיי למידה, בדיוק החששות שכנראה מוכרים לך. הביטחון שאת מחפשת יכול להגיע הרבה יותר מהר ממה שאת חושבת, לא כי תלמדי עוד תיאוריה, אלא כי תלכי לפי דרך שכבר עבדה על מאות נשים לפנייך, עם ליווי צמוד שלוקח אותך צעד-צעד. את לא צריכה לדעת הכל מראש כדי להתחיל.' };
+  } else {
+    var aband = apprBand(answers.appreciation);
+    base = aband === 'appreciated'
+      ? { title: 'המוכנה לצעד הבא', text: 'את כבר טובה במה שאת עושה, ומרגישה את זה, וגם מרגישה שמעריכים אותך. השאלה בשבילך היא לא האם את מספיק טובה, אלא איך לוקחת את מה שכבר יש לך והופכת אותו למשהו גדול יותר. עם הניסיון שכבר צברת, המעבר לעצמאות קצר בהרבה ממה שהוא נראה מבחוץ: לא צריך להתחיל מאפס, רק להוסיף את המסגרת העסקית שחסרה כדי להפוך את הידע שלך להכנסה נוספת משמעותית, בקצב ובהיקף שאת בוחרת. את בדיוק הטיפוס שמוכן לצעד הבא, צריך רק לתת לו כיוון ברור.' }
+      : { title: 'המומחית שלא רואים', text: 'יש לך את הידע, את הניסיון, ואת השנים, ופשוט לא מקבלים ממך את מה שמגיע לך על זה. זו לא בעיה שלך, זו בעיה של המקום שבו את עובדת. זה בדיוק מה שהתוכנית באה לתקן: לא עוד ניסיון או עוד תעודה, אלא מסגרת עסקית שהופכת את מה שכבר יש לך להכנסה שמשקפת את השווי האמיתי שלך. נשים עם הרקע שלך עוברות יחסית בקלות לקבוצה ראשונה, כי אין להן כמעט מה ללמוד מבחינה מקצועית, רק איך להפוך את זה לעסק. העצמאות לא רק תשלם לך יותר, היא תיתן לך סוף סוף את ההכרה שהיית צריכה לקבל כבר מזמן.' };
+  }
+  return { title: base.title, text: buildResultText(base.text, answers) };
+}
+
+function setState(patch) {
+  Object.assign(state, patch);
+  render();
+}
+
+function start() { setState({ screen: 'question', qIndex: 0 }); }
+
+function selectOption(qid, isRole, value) {
+  if (isRole && value === 'אחר') { setState({ pendingOther: true }); return; }
+  var answers = Object.assign({}, state.answers);
+  answers[qid] = value;
+  var nextIndex = state.qIndex + 1;
+  trackEvent('question_answered', { qid: qid, value: value });
+  if (nextIndex >= TOTAL_STEPS) {
+    setState({ answers: answers, screen: 'leadform' });
+  } else {
+    setState({ answers: answers, qIndex: nextIndex, pendingOther: false, otherText: '', sliderValue: 2, msSelected: [false, false, false, false, false], msOtherText: '' });
+  }
+}
+
+function submitOther() {
+  var text = (state.otherText || '').trim();
+  if (!text) return;
+  var answers = Object.assign({}, state.answers);
+  answers.role = text;
+  setState({ answers: answers, qIndex: state.qIndex + 1, pendingOther: false, otherText: '' });
+}
+
+function continueSlider() {
+  var answers = Object.assign({}, state.answers);
+  answers.selfBelief = state.sliderValue;
+  trackEvent('question_answered', { qid: 'selfBelief', value: state.sliderValue });
+  setState({ answers: answers, qIndex: state.qIndex + 1, sliderValue: 2 });
+}
+
+function toggleMsOption(i) {
+  var sel = state.msSelected.slice();
+  sel[i] = !sel[i];
+  setState({ msSelected: sel });
+}
+
+function continueMultiselect() {
+  var q = getQuestion(state.qIndex, state.answers);
+  var picked = [];
+  for (var i = 0; i < q.options.length; i++) { if (state.msSelected[i]) picked.push(q.options[i]); }
+  var other = (state.msOtherText || '').trim();
+  if (other) picked.push(other);
+  var answers = Object.assign({}, state.answers);
+  answers[q.id] = picked;
+  trackEvent('question_answered', { qid: q.id, value: picked });
+  setState({ answers: answers, qIndex: state.qIndex + 1, msSelected: [false, false, false, false, false], msOtherText: '' });
+}
+
+function goBack() {
+  if (state.qIndex === 0) { setState({ screen: 'intro' }); return; }
+  setState({ qIndex: state.qIndex - 1, pendingOther: false });
+}
+
+function submitLead() {
+  var name = (state.leadName || '').trim();
+  var phone = (state.leadPhone || '').trim();
+  if (!name || !phone) { setState({ leadError: true }); return; }
+  setState({ leadSubmitting: true });
+  trackEvent('lead_captured', { name: name, phone: phone, answers: state.answers });
+  sendLeadToWebhook(name, phone, state.answers);
+  setState({ screen: 'result', leadSubmitting: false });
+}
+
+function ctaClick() {
+  trackEvent('cta_clicked', { name: state.leadName, phone: state.leadPhone });
+}
+
+// ============================================================
+// רינדור
+// ============================================================
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
+
+function render() {
+  var app = document.getElementById('app');
+  var html = '';
+
+  if (state.screen === 'intro') {
+    html += ''
+      + '<div style="text-align:center;padding:10px 0 2px;">'
+      + '  <svg width="40" height="40" viewBox="0 0 40 40" fill="none" style="margin-bottom:18px;">'
+      + '    <path d="M20 4 L23 16 L35 20 L23 24 L20 36 L17 24 L5 20 L17 16 Z" stroke="#6FB79C" stroke-width="2" stroke-linejoin="round" fill="none"></path>'
+      + '  </svg>'
+      + '  <h1 style="font-size:25px;font-weight:700;line-height:1.4;margin:0 0 14px;color:#3A342E;">בחני את עצמך:<br>איזה סוג של אשת חינוך וטיפול את?</h1>'
+      + '  <p style="font-size:16px;line-height:1.65;color:#6B6459;margin:0 0 28px;">כמה שאלות קצרות, ובסוף תדעי בדיוק איזה טיפוס את ומה הצעד הבא המתאים לך.</p>'
+      + '  <button id="btn-start" class="cta-btn">בואי נתחיל</button>'
+      + '</div>';
+  }
+
+  if (state.screen === 'question') {
+    var q = getQuestion(state.qIndex, state.answers);
+    var progressPct = Math.round((state.qIndex / TOTAL_STEPS) * 100);
+    var stepLabel = 'שאלה ' + (state.qIndex + 1) + ' מתוך ' + TOTAL_STEPS;
+
+    html += '<div>';
+    html += '<div style="height:6px;background:#F0EDE6;border-radius:6px;overflow:hidden;margin-bottom:8px;"><div style="height:100%;width:' + progressPct + '%;background:#6FB79C;border-radius:6px;transition:width .25s ease;"></div></div>';
+    html += '<div style="font-size:13px;color:#9B9484;margin-bottom:22px;">' + esc(stepLabel) + '</div>';
+    html += '<h2 style="font-size:20px;font-weight:600;line-height:1.55;margin:0 0 22px;color:#3A342E;">' + esc(q.title) + '</h2>';
+
+    if (q.type === 'choice') {
+      html += '<div>';
+      for (var i = 0; i < q.options.length; i++) {
+        html += '<button class="opt-btn" data-choice-index="' + i + '">' + esc(q.options[i]) + '</button>';
+      }
+      html += '</div>';
+      if (q.isRole && state.pendingOther) {
+        html += '<div style="margin-top:2px;">'
+          + '<input type="text" id="other-input" class="field" placeholder="איזה תפקיד?" value="' + esc(state.otherText) + '">'
+          + '<button id="btn-other-submit" class="cta-btn">המשך</button>'
+          + '</div>';
+      }
+    }
+
+    if (q.type === 'slider') {
+      var emoji = ['😐','😐','🙂','😃','🤩'][state.sliderValue] || '🙂';
+      html += '<div style="text-align:center;padding:6px 0 4px;">'
+        + '<div style="font-size:52px;margin-bottom:14px;">' + emoji + '</div>'
+        + '<input type="range" id="slider-input" min="1" max="4" step="1" value="' + state.sliderValue + '">'
+        + '<div style="display:flex;justify-content:space-between;font-size:12px;color:#9B9484;margin-bottom:22px;"><span>קצת</span><span>המון</span></div>'
+        + '<button id="btn-slider-continue" class="cta-btn">המשך</button>'
+        + '</div>';
+    }
+
+    if (q.type === 'multiselect') {
+      html += '<div>';
+      for (var j = 0; j < q.options.length; j++) {
+        var selected = state.msSelected[j];
+        html += '<button class="opt-btn' + (selected ? ' is-selected' : '') + '" data-ms-index="' + j + '">' + (selected ? '✓ ' : '') + esc(q.options[j]) + '</button>';
+      }
+      html += '<input type="text" id="ms-other-input" class="field" placeholder="משהו אחר (לא חובה)" value="' + esc(state.msOtherText) + '">';
+      html += '<button id="btn-ms-continue" class="cta-btn">המשך</button>';
+      html += '</div>';
+    }
+
+    html += '<button id="btn-back" class="back-lnk">חזרה</button>';
+    html += '</div>';
+  }
+
+  if (state.screen === 'leadform') {
+    html += '<div style="text-align:center;padding:10px 0;">'
+      + '<h2 style="font-size:19px;font-weight:600;line-height:1.6;margin:0 0 22px;color:#3A342E;">כמעט סיימנו!<br>השאירי שם וטלפון ותקבלי את הניתוח האישי שלך</h2>'
+      + '<input type="text" id="lead-name" class="field" placeholder="שם" value="' + esc(state.leadName) + '">'
+      + '<input type="tel" id="lead-phone" class="field" placeholder="טלפון" value="' + esc(state.leadPhone) + '">'
+      + (state.leadError ? '<div style="color:#C0546B;font-size:14px;margin-bottom:12px;">נא למלא שם וטלפון</div>' : '')
+      + '<button id="btn-lead-submit" class="cta-btn"' + (state.leadSubmitting ? ' disabled' : '') + '>קבלי את התוצאות שלי</button>'
+      + '</div>';
+  }
+
+  if (state.screen === 'result') {
+    var result = getResult(state.answers);
+    html += '<div style="text-align:center;padding:8px 0;">'
+      + '<svg width="36" height="36" viewBox="0 0 40 40" fill="none" style="margin-bottom:16px;"><path d="M20 4 L23 16 L35 20 L23 24 L20 36 L17 24 L5 20 L17 16 Z" stroke="#6FB79C" stroke-width="2" stroke-linejoin="round" fill="none"></path></svg>'
+      + '<div style="font-size:14px;color:#9B9484;margin-bottom:6px;">הטיפוס שלך</div>'
+      + '<h2 style="font-size:24px;font-weight:700;margin:0 0 18px;color:#3A342E;">' + esc(result.title) + '</h2>'
+      + '<p style="font-size:16px;line-height:1.75;color:#54504A;margin:0 0 30px;text-align:right;">' + esc(result.text) + '</p>'
+      + '<a href="https://talkwithkids.co.il/thankyou1" id="cta-final" class="cta-btn">אם תרצי להתחיל להגשים את החלום, לחצי ואספר לך הכל על תוכנית ההכשרה</a>'
+      + '</div>';
+  }
+
+  app.innerHTML = html;
+  attachHandlers();
+}
+
+function attachHandlers() {
+  var el;
+
+  el = document.getElementById('btn-start');
+  if (el) el.onclick = start;
+
+  var choiceBtns = document.querySelectorAll('[data-choice-index]');
+  if (choiceBtns.length) {
+    var q = getQuestion(state.qIndex, state.answers);
+    choiceBtns.forEach(function (btn) {
+      var i = parseInt(btn.getAttribute('data-choice-index'), 10);
+      btn.onclick = function () { selectOption(q.id, !!q.isRole, q.options[i]); };
+    });
+  }
+
+  el = document.getElementById('other-input');
+  if (el) el.oninput = function (e) { state.otherText = e.target.value; };
+  el = document.getElementById('btn-other-submit');
+  if (el) el.onclick = submitOther;
+
+  el = document.getElementById('slider-input');
+  if (el) el.oninput = function (e) { setState({ sliderValue: parseInt(e.target.value, 10) || 1 }); };
+  el = document.getElementById('btn-slider-continue');
+  if (el) el.onclick = continueSlider;
+
+  var msBtns = document.querySelectorAll('[data-ms-index]');
+  msBtns.forEach(function (btn) {
+    var i = parseInt(btn.getAttribute('data-ms-index'), 10);
+    btn.onclick = function () { toggleMsOption(i); };
+  });
+  el = document.getElementById('ms-other-input');
+  if (el) el.oninput = function (e) { state.msOtherText = e.target.value; };
+  el = document.getElementById('btn-ms-continue');
+  if (el) el.onclick = continueMultiselect;
+
+  el = document.getElementById('btn-back');
+  if (el) el.onclick = goBack;
+
+  el = document.getElementById('lead-name');
+  if (el) el.oninput = function (e) { state.leadName = e.target.value; state.leadError = false; };
+  el = document.getElementById('lead-phone');
+  if (el) el.oninput = function (e) { state.leadPhone = e.target.value; state.leadError = false; };
+  el = document.getElementById('btn-lead-submit');
+  if (el) el.onclick = submitLead;
+
+  el = document.getElementById('cta-final');
+  if (el) el.onclick = ctaClick;
+}
+
+render();
+</script>
+</body>
+</html>
