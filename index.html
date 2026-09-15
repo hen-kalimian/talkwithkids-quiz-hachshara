@@ -89,19 +89,43 @@ function sendLeadToWebhook(name, phone, answers) {
     console.warn('[quiz] LEAD_WEBHOOK_URL not set yet - the lead was captured on screen only, not sent anywhere.', { name: name, phone: phone, answers: answers });
     return;
   }
-  // no-cors: ה-webhook לא בהכרח מחזיר CORS headers, אז אי אפשר לקרוא את
-  // התשובה, אבל הבקשה עצמה כן נשלחת ומתקבלת בצד השרת (fire-and-forget).
-  // הערה חשובה: בבקשת no-cors הדפדפן שומר רק על 3 סוגי Content-Type "בטוחים"
-  // (text/plain, application/x-www-form-urlencoded, multipart/form-data) ומשמיט
-  // בשקט כל כותרת אחרת - כולל application/json. לכן משתמשים כאן ב-text/plain
-  // בפועל (עדיין עם תוכן JSON תקין בגוף הבקשה, שרוב מקבלי ה-webhook כמו
-  // GoHighLevel מצליחים לפרסר גם ככה), כדי שהכותרת תישלח כמו שהוצהרה.
-  fetch(LEAD_WEBHOOK_URL, {
-    method: 'POST',
-    mode: 'no-cors',
-    headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
-    body: JSON.stringify({ name: name, phone: phone, source: 'quiz-hachshara', answers: answers })
-  }).catch(function (e) { console.warn('[quiz] lead webhook request failed', e); });
+  // שולחים כטופס HTML אמיתי (POST רגיל, לא fetch) לתוך iframe מוסתר, בדיוק כמו
+  // שדפדפן שולח טופס רגיל. זה נמנע מבעיות CORS/no-cors/sandboxed-iframe שיכולות
+  // לחסום בשקט בקשת fetch מתוך iframe מוטמע - זו הסיבה הסבירה לכך שהטופס הזה
+  // לא הגיע ל-Lead Connector בזמן שטפסי Wix Forms הרגילים כן עובדים.
+  try {
+    var iframe = document.createElement('iframe');
+    iframe.name = 'lead-webhook-target-' + Date.now();
+    iframe.style.display = 'none';
+    document.body.appendChild(iframe);
+
+    var form = document.createElement('form');
+    form.method = 'POST';
+    form.action = LEAD_WEBHOOK_URL;
+    form.target = iframe.name;
+    form.style.display = 'none';
+
+    function addField(fieldName, value) {
+      var input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = fieldName;
+      input.value = value;
+      form.appendChild(input);
+    }
+    addField('name', name);
+    addField('phone', phone);
+    addField('source', 'quiz-hachshara');
+    addField('answers', JSON.stringify(answers));
+
+    document.body.appendChild(form);
+    form.submit();
+    setTimeout(function () {
+      if (form.parentNode) form.parentNode.removeChild(form);
+      if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
+    }, 8000);
+  } catch (e) {
+    console.warn('[quiz] lead webhook form submit failed', e);
+  }
 }
 
 // ============================================================
