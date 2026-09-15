@@ -84,38 +84,35 @@
 // ============================================================
 var LEAD_WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/Qt9lEQiyh8wgVPJM4d6Q/webhook-trigger/c006972a-59f5-40cc-83a5-382a3d491bb5';
 
-function sendLeadToWebhook(name, phone, answers) {
-  if (!LEAD_WEBHOOK_URL || LEAD_WEBHOOK_URL.indexOf('PASTE_') === 0) {
-    console.warn('[quiz] LEAD_WEBHOOK_URL not set yet - the lead was captured on screen only, not sent anywhere.', { name: name, phone: phone, answers: answers });
-    return;
-  }
-  // שולחים כטופס HTML אמיתי (POST רגיל, לא fetch) לתוך iframe מוסתר, בדיוק כמו
-  // שדפדפן שולח טופס רגיל. זה נמנע מבעיות CORS/no-cors/sandboxed-iframe שיכולות
-  // לחסום בשקט בקשת fetch מתוך iframe מוטמע - זו הסיבה הסבירה לכך שהטופס הזה
-  // לא הגיע ל-Lead Connector בזמן שטפסי Wix Forms הרגילים כן עובדים.
+// גיבוי: כל שליחה נרשמת גם בטופס Google (טופס "שאלון קלוד"), שמזין אוטומטית
+// גיליון Google Sheets. זה נשאר גם אם ה-webhook למעלה לא עובד מסיבה כלשהי.
+var BACKUP_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLScP4ZuIZJehRtUaHa0EXUw5eMlKXokBn9faE9R1fSkBz2Wu8w/formResponse';
+var BACKUP_FORM_FIELDS = { name: 'entry.1174445569', phone: 'entry.867980216' };
+
+// שולחת כטופס HTML אמיתי (POST רגיל, לא fetch) לתוך iframe מוסתר, בדיוק כמו
+// שדפדפן שולח טופס רגיל. זה נמנע מבעיות שיכולות לחסום בשקט בקשה שנשלחת
+// בדרך אחרת מתוך עמוד מוטמע - זו הסיבה הסבירה לכך שהניסיון הראשון לא הגיע
+// ל-Lead Connector בזמן שטפסי Wix Forms הרגילים כן עבדו.
+function submitHiddenForm(url, fields) {
   try {
     var iframe = document.createElement('iframe');
-    iframe.name = 'lead-webhook-target-' + Date.now();
+    iframe.name = 'hidden-target-' + Date.now() + '-' + Math.random().toString(36).slice(2);
     iframe.style.display = 'none';
     document.body.appendChild(iframe);
 
     var form = document.createElement('form');
     form.method = 'POST';
-    form.action = LEAD_WEBHOOK_URL;
+    form.action = url;
     form.target = iframe.name;
     form.style.display = 'none';
 
-    function addField(fieldName, value) {
+    Object.keys(fields).forEach(function (key) {
       var input = document.createElement('input');
       input.type = 'hidden';
-      input.name = fieldName;
-      input.value = value;
+      input.name = key;
+      input.value = fields[key];
       form.appendChild(input);
-    }
-    addField('name', name);
-    addField('phone', phone);
-    addField('source', 'quiz-hachshara');
-    addField('answers', JSON.stringify(answers));
+    });
 
     document.body.appendChild(form);
     form.submit();
@@ -124,7 +121,27 @@ function sendLeadToWebhook(name, phone, answers) {
       if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
     }, 8000);
   } catch (e) {
-    console.warn('[quiz] lead webhook form submit failed', e);
+    console.warn('[quiz] hidden form submit failed', url, e);
+  }
+}
+
+function sendLeadToWebhook(name, phone, answers) {
+  if (LEAD_WEBHOOK_URL && LEAD_WEBHOOK_URL.indexOf('PASTE_') !== 0) {
+    submitHiddenForm(LEAD_WEBHOOK_URL, {
+      name: name,
+      phone: phone,
+      source: 'quiz-hachshara',
+      answers: JSON.stringify(answers)
+    });
+  } else {
+    console.warn('[quiz] LEAD_WEBHOOK_URL not set - lead not sent to Lead Connector.', { name: name, phone: phone });
+  }
+
+  if (BACKUP_FORM_URL && BACKUP_FORM_URL.indexOf('PASTE_') !== 0) {
+    var backupFields = {};
+    backupFields[BACKUP_FORM_FIELDS.name] = name;
+    backupFields[BACKUP_FORM_FIELDS.phone] = phone;
+    submitHiddenForm(BACKUP_FORM_URL, backupFields);
   }
 }
 
