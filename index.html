@@ -630,9 +630,10 @@ function attachHandlers() {
   var el;
 
   el = document.getElementById('btn-start');
-  if (el) el.onclick = function () {
-    el.disabled = true;
-    el.classList.add('is-selected');
+  if (el) el.onclick = function (e) {
+    var target = e.currentTarget;
+    target.disabled = true;
+    target.classList.add('is-selected');
     setTimeout(start, 200);
   };
 
@@ -657,18 +658,20 @@ function attachHandlers() {
     el.scrollIntoView({ block: 'center', behavior: 'smooth' });
   }
   el = document.getElementById('btn-other-submit');
-  if (el) el.onclick = function () {
-    el.disabled = true;
-    el.classList.add('is-selected');
+  if (el) el.onclick = function (e) {
+    var target = e.currentTarget;
+    target.disabled = true;
+    target.classList.add('is-selected');
     setTimeout(submitOther, 200);
   };
 
   el = document.getElementById('slider-input');
   if (el) el.oninput = function (e) { setState({ sliderValue: parseInt(e.target.value, 10) || 1 }); };
   el = document.getElementById('btn-slider-continue');
-  if (el) el.onclick = function () {
-    el.disabled = true;
-    el.classList.add('is-selected');
+  if (el) el.onclick = function (e) {
+    var target = e.currentTarget;
+    target.disabled = true;
+    target.classList.add('is-selected');
     setTimeout(continueSlider, 200);
   };
 
@@ -678,9 +681,10 @@ function attachHandlers() {
     btn.onclick = function () { toggleMsOption(i); };
   });
   el = document.getElementById('btn-ms-continue');
-  if (el) el.onclick = function () {
-    el.disabled = true;
-    el.classList.add('is-selected');
+  if (el) el.onclick = function (e) {
+    var target = e.currentTarget;
+    target.disabled = true;
+    target.classList.add('is-selected');
     setTimeout(continueMultiselect, 200);
   };
 
@@ -692,12 +696,13 @@ function attachHandlers() {
   el = document.getElementById('lead-phone');
   if (el) el.oninput = function (e) { state.leadPhone = e.target.value; state.leadError = false; };
   el = document.getElementById('btn-lead-submit');
-  if (el) el.onclick = function () {
+  if (el) el.onclick = function (e) {
     var name = (state.leadName || '').trim();
     var phone = (state.leadPhone || '').trim();
     if (!name || !phone) { submitLead(); return; }
-    el.disabled = true;
-    el.classList.add('is-selected');
+    var target = e.currentTarget;
+    target.disabled = true;
+    target.classList.add('is-selected');
     setTimeout(submitLead, 200);
   };
 
