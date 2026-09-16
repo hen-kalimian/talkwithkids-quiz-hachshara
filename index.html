@@ -230,10 +230,12 @@ function isNonJobRoleText(answers) {
   return false;
 }
 
-// לתצוגה בתוך "בתור X, כבר...": אם היא כתבה משפט שלם ("אני בחופשת לידה"),
-// מורידים את ה"אני" הפותח כדי שהמשפט המורכב יזרום קצת יותר טוב.
+// לתצוגה בתוך "בתור X, כבר...": תפקיד ידוע מוצג כמו שהוא. תפקיד חופשי (אחר)
+// מוצג בתור "אשת חינוך" כללי, כדי לא להזריק משפט שלם ולא-תקין דקדוקית
+// שהיא הקלידה (כמו "אני בחופשת לידה") לתוך "בתור X, כבר...".
 function roleForPrefix(answers) {
-  return (answers.role || '').replace(/^אני\s+/, '');
+  if (KNOWN_ROLES.indexOf(answers.role) !== -1) return answers.role;
+  return 'אשת חינוך';
 }
 
 function incomeAmountLabel(answers) {
@@ -293,7 +295,7 @@ function getQuestion(index, answers) {
           'לא יודעת איך לשווק את עצמי', 'לא בטוחה שיש לי שיטה מסודרת, לא רק אינטואיציה', 'פשוט לא ידעתי שזה אפשרי, מאיפה להתחיל', 'שום דבר, פשוט לא התחלתי עדיין'
         ]};
       }
-      return { type: 'choice', id: 'deepen', title: 'מה הכי גורם לך להרגיש פחות בטוחה?', options: [
+      return { type: 'multiselect', id: 'deepen', title: 'מה יכול לערער לך את הביטחון? (אפשר לסמן יותר מתשובה אחת)', options: [
         'התמודדות עם ילדים מאתגרים או עם קשיי למידה', 'לא בטוחה שהשיטות שלי הכי טובות', 'חוששת מתגובת ההורים אם משהו לא ילך חלק', 'בכלל לא בטוחה שיש לי את זה'
       ]};
     }
@@ -309,7 +311,7 @@ function getQuestion(index, answers) {
     ]};
   }
   if (index === 5) {
-    return { type: 'slider', id: 'selfBelief', title: 'נשים בתוכנית עברו משעה אחת בשבוע (3,000 ₪) ועד 8,000-18,000 ₪ בחודש. את, כמה מקום את מרגישה שיש לך להשיג מעבר למה שיש לך היום?' };
+    return { type: 'slider', id: 'selfBelief', title: 'כמה עוד את יכולה להרוויח לדעתך מקבוצות הכנה ושיעורים פרטיים?' };
   }
   if (index === 6) {
     return { type: 'choice', id: 'income', title: 'כמה היית רוצה להוסיף להכנסה החודשית שלך?', options: [
@@ -326,35 +328,43 @@ function getQuestion(index, answers) {
       ? 'תארי לעצמך סוף חודש: כל החשבונות שולמו, והגעת בדיוק לסכום שחלמת עליו. מה קורה קודם? (אפשר לסמן כמה שרוצים)'
       : 'תארי לעצמך סוף חודש: כל החשבונות שולמו, ויש לך עוד ' + amt + ' שנשארו בצד. מה קורה קודם? (אפשר לסמן כמה שרוצים)';
     return { type: 'multiselect', id: 'feelings', title: q8Title, options: [
-      'לא בודקת שוב ושוב את היתרה בבנק',
-      'לא נלחצת כשמגיע חיוב בלתי צפוי',
+      'לא אבדוק שוב ושוב את היתרה בבנק',
+      'לא אילחץ כשיגיע חיוב בלתי צפוי',
       'אזמין לעצמי חופשה או מוצר שדחיתי',
-      'הייתי יכולה להשקיע יותר בזוגיות או במשפחה שלי',
-      'גאה בעצמי שהצלחתי לשנות את זה'
+      'אוכל להשקיע יותר בזוגיות או במשפחה שלי',
+      'אהיה גאה בעצמי שהצלחתי לשנות את זה'
     ]};
   }
   if (index === 8) {
     return { type: 'choice', id: 'pastFear', title: 'קרה לך בעבר שלמדת קורס או הכשרה, התלהבת, אבל בסוף לא ממש יישמת?', options: [
-      'כן, כמה פעמים', 'קצת', 'לא, אני בדרך כלל מיישמת'
+      'כן, כמה פעמים', 'לא, אני בדרך כלל מיישמת'
     ]};
   }
   if (index === 9) {
+    return { type: 'choice', id: 'pastFearWhy', title: 'מה הכי גרם לזה שלא יישמת?', options: [
+      'לא היה לי ליווי עסקי',
+      'לא היה לי אומץ',
+      'לא הייתה לי תוכנית עבודה מסודרת',
+      'שילוב של כמה מהסיבות'
+    ]};
+  }
+  if (index === 10) {
     return { type: 'choice', id: 'timeForMaterials', title: 'כמה זמן פנוי יש לך היום ליצור חומרי לימוד ותוכן לקבוצה?', options: [
       'יש לי זמן, אני אוהבת ליצור בעצמי',
       'קצת, אבל אני מעדיפה למקד את הזמן שלי בילדים ולא בהכנות',
       'אין לי זמן, אני מעדיפה שהכל יהיה מוכן וברמה גבוהה'
     ]};
   }
-  if (index === 10) {
+  if (index === 11) {
     var communityTitle = 'אם היית יכולה להיות חלק מקהילה של ' + communityLabel(answers) + ' שמקבלת ליווי מקצועי ועסקי, ובה אפשר לדבר בחופשיות על כסף ואתגרים, היית לוקחת את האפשרות?';
     return { type: 'choice', id: 'community', title: communityTitle, options: [
       'כן, ליווי וקהילה זה בדיוק מה שיחסר לי',
+      'כן, כי אני מאמינה שתמיד אפשר ללמוד ולהתפתח',
       'זה יכול לעזור, אבל אני גם עצמאית',
-      'אני מעדיפה לעשות דברים לבד',
-      'כן, כי אני מאמינה שתמיד אפשר ללמוד ולהתפתח'
+      'אני מעדיפה לעשות דברים לבד'
     ]};
   }
-  if (index === 11) {
+  if (index === 12) {
     var amt2 = incomeAmountLabel(answers);
     var isMaxIncome2 = answers.income === 'הכי הרבה שאפשר, אני רצינית בקטע הזה';
     var timingTitle = isMaxIncome2
@@ -372,11 +382,14 @@ function getQuestion(index, answers) {
   ]};
 }
 
-var TOTAL_STEPS = 13;
+var TOTAL_STEPS = 14;
 
 function isSkippedStep(index, answers) {
   if (index === 4) {
     return tenureBand(answers.tenure) === 'veteran' && apprBand(answers.appreciation) === 'unappreciated';
+  }
+  if (index === 9) {
+    return answers.pastFear !== 'כן, כמה פעמים';
   }
   return false;
 }
