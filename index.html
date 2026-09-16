@@ -538,14 +538,15 @@ function render() {
     if (q.type === 'choice') {
       html += '<div>';
       for (var i = 0; i < q.options.length; i++) {
-        html += '<button class="opt-btn" data-choice-index="' + i + '">' + esc(q.options[i]) + '</button>';
+        if (q.isRole && q.options[i] === 'אחר' && state.pendingOther) {
+          html += '<input type="text" id="other-input" class="opt-btn" placeholder="במה את עוסקת? הקלידי" value="' + esc(state.otherText) + '">';
+        } else {
+          html += '<button class="opt-btn" data-choice-index="' + i + '">' + esc(q.options[i]) + '</button>';
+        }
       }
       html += '</div>';
       if (q.isRole && state.pendingOther) {
-        html += '<div style="margin-top:2px;">'
-          + '<input type="text" id="other-input" class="field" placeholder="איזה תפקיד?" value="' + esc(state.otherText) + '">'
-          + '<button id="btn-other-submit" class="cta-btn">המשך</button>'
-          + '</div>';
+        html += '<button id="btn-other-submit" class="cta-btn">המשך</button>';
       }
     }
 
@@ -614,7 +615,12 @@ function attachHandlers() {
   }
 
   el = document.getElementById('other-input');
-  if (el) el.oninput = function (e) { state.otherText = e.target.value; };
+  if (el) {
+    el.oninput = function (e) { state.otherText = e.target.value; };
+    el.onkeydown = function (e) { if (e.key === 'Enter') submitOther(); };
+    el.focus();
+    el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }
   el = document.getElementById('btn-other-submit');
   if (el) el.onclick = submitOther;
 
