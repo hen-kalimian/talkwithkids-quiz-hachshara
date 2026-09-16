@@ -34,6 +34,8 @@
   @media (max-width: 480px) {
     body { padding: 20px 12px; }
     #card { padding: 28px 20px; border-radius: 22px; }
+    #app h2 { font-size: 18px !important; }
+    .opt-btn { font-size: 14px !important; padding: 13px 14px !important; }
   }
   .blob { position: absolute; z-index: 0; }
   .content { position: relative; z-index: 1; }
@@ -63,6 +65,7 @@
   .field {
     width: 100%; padding: 14px 16px; border-radius: 14px; border: 2px solid #ECE7DE;
     font-family: 'Rubik', sans-serif; font-size: 16px; margin-bottom: 12px; box-sizing: border-box;
+    text-align: center;
   }
   .field::placeholder { color: #B7AF9F; }
   input[type="range"] { width: 100%; margin-bottom: 10px; accent-color: #6FB79C; }
@@ -168,7 +171,6 @@ var state = {
   otherText: '',
   sliderValue: 2,
   msSelected: [false, false, false, false, false],
-  msOtherText: '',
   leadName: '',
   leadPhone: '',
   leadError: false,
@@ -196,7 +198,6 @@ function getRole(answers) {
     { label: 'קלינאית תקשורת', tenureQ: 'כמה שנות ניסיון קליני יש לך?', type: 'clinical' },
     { label: 'מרפאה בעיסוק', tenureQ: 'כמה שנות ניסיון יש לך?', type: 'clinical' },
     { label: 'סייעת', tenureQ: 'כמה שנים את עובדת כסייעת?', type: 'teaching' },
-    { label: 'מדריכת הורים', tenureQ: 'כמה שנים את מדריכה הורים?', type: 'teaching' },
     { label: 'אחר', tenureQ: 'כמה שנות ניסיון יש לך בעבודה עם ילדים?', type: 'teaching' }
   ];
   var found = null;
@@ -204,7 +205,18 @@ function getRole(answers) {
   return found || roles[roles.length - 1];
 }
 
-var KNOWN_ROLES = ['גננת', 'מורה', 'קלינאית תקשורת', 'מרפאה בעיסוק', 'סייעת', 'מדריכת הורים'];
+var KNOWN_ROLES = ['גננת', 'מורה', 'קלינאית תקשורת', 'מרפאה בעיסוק', 'סייעת'];
+
+function communityLabel(answers) {
+  var map = {
+    'גננת': 'גננות כמוך',
+    'מורה': 'מורות כמוך',
+    'קלינאית תקשורת': 'קלינאיות תקשורת כמוך',
+    'מרפאה בעיסוק': 'מרפאות בעיסוק כמוך',
+    'סייעת': 'סייעות כמוך'
+  };
+  return map[answers.role] || 'נשות חינוך וטיפול';
+}
 
 // מזהה תשובת "אחר" חופשית שמתארת סטטוס בלי הכנסה/משרה (אמא בבית, חופשת לידה
 // וכו') - כדי שהשאלות הבאות לא ישאלו על "שכר" למי שאין לה כזה.
@@ -237,7 +249,7 @@ function incomeAmountLabel(answers) {
 function getQuestion(index, answers) {
   if (index === 0) {
     return { type: 'choice', id: 'role', isRole: true, title: 'מה התפקיד שלך היום?', options: [
-      'גננת', 'מורה', 'קלינאית תקשורת', 'מרפאה בעיסוק', 'סייעת', 'מדריכת הורים', 'אחר'
+      'גננת', 'מורה', 'קלינאית תקשורת', 'מרפאה בעיסוק', 'סייעת', 'אחר'
     ]};
   }
   if (index === 1) {
@@ -267,7 +279,7 @@ function getQuestion(index, answers) {
     }
     var appreciationCore = isNonJobRoleText(answers)
       ? 'את מרגישה שמעריכים אותך ואת המאמץ שלך היום, כמו שמגיע לך?'
-      : 'את מרגישה מוערכת בעבודה שלך היום, שמה שאת מרוויחה משקף את המאמץ וההשקעה שלך?';
+      : 'האם מה שאת מרוויחה משקף את המאמץ וההשקעה שלך?';
     return { type: 'choice', id: 'appreciation', title: prefix + appreciationCore, options: [
       'כן, לגמרי', 'חלקית', 'לא, ואני מרגישה את זה הרבה', 'ממש לא, וזה מתסכל אותי'
     ]};
@@ -316,8 +328,8 @@ function getQuestion(index, answers) {
     return { type: 'multiselect', id: 'feelings', title: q8Title, options: [
       'לא בודקת שוב ושוב את היתרה בבנק',
       'לא נלחצת כשמגיע חיוב בלתי צפוי',
-      'סוף סוף יש מרווח נשימה, לא רק "מכסה חורים"',
-      'מרגישה שהמאמץ שלי באמת משתלם',
+      'אזמין לעצמי חופשה או מוצר שדחיתי',
+      'הייתי יכולה להשקיע יותר בזוגיות או במשפחה שלי',
       'גאה בעצמי שהצלחתי לשנות את זה'
     ]};
   }
@@ -327,27 +339,22 @@ function getQuestion(index, answers) {
     ]};
   }
   if (index === 9) {
-    return { type: 'choice', id: 'bizFear', title: 'מה הכי מפחיד אותך בלפתוח את זה כעסק?', options: [
-      'לשווק את עצמי', 'הביטחון המקצועי מול ילדים מאתגרים', 'למצוא את הזמן', 'כלום, אני מוכנה'
-    ]};
-  }
-  if (index === 10) {
     return { type: 'choice', id: 'timeForMaterials', title: 'כמה זמן פנוי יש לך היום ליצור חומרי לימוד ותוכן לקבוצה?', options: [
       'יש לי זמן, אני אוהבת ליצור בעצמי',
       'קצת, אבל אני מעדיפה למקד את הזמן שלי בילדים ולא בהכנות',
-      'אין לי זמן, אני מעדיפה שהכל יהיה מוכן וברמה גבוהה',
-      'לא חשבתי על זה עד עכשיו'
+      'אין לי זמן, אני מעדיפה שהכל יהיה מוכן וברמה גבוהה'
     ]};
   }
-  if (index === 11) {
-    return { type: 'choice', id: 'community', title: 'היית רוצה לקחת חלק בקהילה שבה תמיד אפשר להתייעץ, לדבר על כסף ואתגרים מקצועיים ולקבל מענה, או שאת מעדיפה לעשות הכל בעצמך?', options: [
+  if (index === 10) {
+    var communityTitle = 'אם היית יכולה להיות חלק מקהילה של ' + communityLabel(answers) + ' שמקבלת ליווי מקצועי ועסקי, ובה אפשר לדבר בחופשיות על כסף ואתגרים, היית לוקחת את האפשרות?';
+    return { type: 'choice', id: 'community', title: communityTitle, options: [
       'כן, ליווי וקהילה זה בדיוק מה שיחסר לי',
       'זה יכול לעזור, אבל אני גם עצמאית',
       'אני מעדיפה לעשות דברים לבד',
-      'לא חשבתי על זה'
+      'כן, כי אני מאמינה שתמיד אפשר ללמוד ולהתפתח'
     ]};
   }
-  if (index === 12) {
+  if (index === 11) {
     var amt2 = incomeAmountLabel(answers);
     var isMaxIncome2 = answers.income === 'הכי הרבה שאפשר, אני רצינית בקטע הזה';
     var timingTitle = isMaxIncome2
@@ -361,11 +368,26 @@ function getQuestion(index, answers) {
     'אני אתאכזב מעצמי',
     'אני ממש לא רוצה להישאר באותו מקום',
     'לא אכפת לי להישאר במקום, אין לי לחץ',
-    'לא חשבתי על זה ככה'
+    'הייתי מרגישה תקועה, לא מתקדמת'
   ]};
 }
 
-var TOTAL_STEPS = 14;
+var TOTAL_STEPS = 13;
+
+function isSkippedStep(index, answers) {
+  if (index === 4) {
+    return tenureBand(answers.tenure) === 'veteran' && apprBand(answers.appreciation) === 'unappreciated';
+  }
+  return false;
+}
+function nextValidIndex(index, answers) {
+  while (index < TOTAL_STEPS && isSkippedStep(index, answers)) index++;
+  return index;
+}
+function prevValidIndex(index, answers) {
+  while (index > 0 && isSkippedStep(index, answers)) index--;
+  return index;
+}
 
 function buildResultText(base, answers) {
   var text = base;
@@ -390,7 +412,7 @@ function getResult(answers) {
     var aband = apprBand(answers.appreciation);
     base = aband === 'appreciated'
       ? { title: 'המוכנה לצעד הבא', text: 'את כבר טובה במה שאת עושה, ומרגישה את זה, וגם מרגישה שמעריכים אותך. השאלה בשבילך היא לא האם את מספיק טובה, אלא איך לוקחת את מה שכבר יש לך והופכת אותו למשהו גדול יותר. עם הניסיון שכבר צברת, המעבר לעצמאות קצר בהרבה ממה שהוא נראה מבחוץ: לא צריך להתחיל מאפס, רק להוסיף את המסגרת העסקית שחסרה כדי להפוך את הידע שלך להכנסה נוספת משמעותית, בקצב ובהיקף שאת בוחרת. את בדיוק הטיפוס שמוכן לצעד הבא, צריך רק לתת לו כיוון ברור.' }
-      : { title: 'המומחית שלא רואים', text: 'יש לך את הידע, את הניסיון, ואת השנים, ופשוט לא מקבלים ממך את מה שמגיע לך על זה. זו לא בעיה שלך, זו בעיה של המקום שבו את עובדת. זה בדיוק מה שהתוכנית באה לתקן: לא עוד ניסיון או עוד תעודה, אלא מסגרת עסקית שהופכת את מה שכבר יש לך להכנסה שמשקפת את השווי האמיתי שלך. נשים עם הרקע שלך עוברות יחסית בקלות לקבוצה ראשונה, כי אין להן כמעט מה ללמוד מבחינה מקצועית, רק איך להפוך את זה לעסק. העצמאות לא רק תשלם לך יותר, היא תיתן לך סוף סוף את ההכרה שהיית צריכה לקבל כבר מזמן.' };
+      : { title: 'המומחית שלא רואים', text: 'יש לך את הידע, את הניסיון, ואת השנים, ופשוט לא מקבלים ממך את מה שמגיע לך על זה. עולם החינוך והטיפול לא תמיד מאפשר היום שכר שמשקף את העשייה האמיתית שלך, וזה לא קשור ליכולת שלך. בדיוק בשביל זה התוכנית נותנת מסגרת עסקית שהופכת את מה שכבר יש לך להכנסה שמשקפת את השווי האמיתי שלך. נשים עם הרקע שלך עוברות יחסית בקלות לקבוצה ראשונה, כי כמעט הכל כבר קיים אצלך מבחינה מקצועית, ונשאר רק להפוך את זה לעסק. העצמאות לא רק תשלם לך יותר, היא תיתן לך סוף סוף את ההכרה שהיית צריכה לקבל כבר מזמן.' };
   }
   return { title: base.title, text: buildResultText(base.text, answers) };
 }
@@ -406,12 +428,12 @@ function selectOption(qid, isRole, value) {
   if (isRole && value === 'אחר') { setState({ pendingOther: true }); return; }
   var answers = Object.assign({}, state.answers);
   answers[qid] = value;
-  var nextIndex = state.qIndex + 1;
+  var nextIndex = nextValidIndex(state.qIndex + 1, answers);
   trackEvent('question_answered', { qid: qid, value: value });
   if (nextIndex >= TOTAL_STEPS) {
     setState({ answers: answers, screen: 'leadform' });
   } else {
-    setState({ answers: answers, qIndex: nextIndex, pendingOther: false, otherText: '', sliderValue: 2, msSelected: [false, false, false, false, false], msOtherText: '' });
+    setState({ answers: answers, qIndex: nextIndex, pendingOther: false, otherText: '', sliderValue: 2, msSelected: [false, false, false, false, false] });
   }
 }
 
@@ -420,14 +442,14 @@ function submitOther() {
   if (!text) return;
   var answers = Object.assign({}, state.answers);
   answers.role = text;
-  setState({ answers: answers, qIndex: state.qIndex + 1, pendingOther: false, otherText: '' });
+  setState({ answers: answers, qIndex: nextValidIndex(state.qIndex + 1, answers), pendingOther: false, otherText: '' });
 }
 
 function continueSlider() {
   var answers = Object.assign({}, state.answers);
   answers.selfBelief = state.sliderValue;
   trackEvent('question_answered', { qid: 'selfBelief', value: state.sliderValue });
-  setState({ answers: answers, qIndex: state.qIndex + 1, sliderValue: 2 });
+  setState({ answers: answers, qIndex: nextValidIndex(state.qIndex + 1, answers), sliderValue: 2 });
 }
 
 function toggleMsOption(i) {
@@ -440,17 +462,15 @@ function continueMultiselect() {
   var q = getQuestion(state.qIndex, state.answers);
   var picked = [];
   for (var i = 0; i < q.options.length; i++) { if (state.msSelected[i]) picked.push(q.options[i]); }
-  var other = (state.msOtherText || '').trim();
-  if (other) picked.push(other);
   var answers = Object.assign({}, state.answers);
   answers[q.id] = picked;
   trackEvent('question_answered', { qid: q.id, value: picked });
-  setState({ answers: answers, qIndex: state.qIndex + 1, msSelected: [false, false, false, false, false], msOtherText: '' });
+  setState({ answers: answers, qIndex: nextValidIndex(state.qIndex + 1, answers), msSelected: [false, false, false, false, false] });
 }
 
 function goBack() {
   if (state.qIndex === 0) { setState({ screen: 'intro' }); return; }
-  setState({ qIndex: state.qIndex - 1, pendingOther: false });
+  setState({ qIndex: prevValidIndex(state.qIndex - 1, state.answers), pendingOther: false });
 }
 
 function submitLead() {
@@ -532,7 +552,6 @@ function render() {
         var selected = state.msSelected[j];
         html += '<button class="opt-btn' + (selected ? ' is-selected' : '') + '" data-ms-index="' + j + '">' + (selected ? '✓ ' : '') + esc(q.options[j]) + '</button>';
       }
-      html += '<input type="text" id="ms-other-input" class="field" placeholder="משהו אחר (לא חובה)" value="' + esc(state.msOtherText) + '">';
       html += '<button id="btn-ms-continue" class="cta-btn">המשך</button>';
       html += '</div>';
     }
@@ -547,7 +566,7 @@ function render() {
       + '<input type="text" id="lead-name" class="field" placeholder="שם" value="' + esc(state.leadName) + '">'
       + '<input type="tel" id="lead-phone" class="field" placeholder="טלפון" value="' + esc(state.leadPhone) + '">'
       + (state.leadError ? '<div style="color:#C0546B;font-size:14px;margin-bottom:12px;">נא למלא שם וטלפון</div>' : '')
-      + '<button id="btn-lead-submit" class="cta-btn"' + (state.leadSubmitting ? ' disabled' : '') + '>קבלי את התוצאות שלי</button>'
+      + '<button id="btn-lead-submit" class="cta-btn"' + (state.leadSubmitting ? ' disabled' : '') + '>חן תראי לי!</button>'
       + '</div>';
   }
 
@@ -558,7 +577,7 @@ function render() {
       + '<div style="font-size:14px;color:#9B9484;margin-bottom:6px;">הטיפוס שלך</div>'
       + '<h2 style="font-size:24px;font-weight:700;margin:0 0 18px;color:#3A342E;">' + esc(result.title) + '</h2>'
       + '<p style="font-size:16px;line-height:1.75;color:#54504A;margin:0 0 30px;text-align:right;">' + esc(result.text) + '</p>'
-      + '<a href="https://talkwithkids.co.il/thankyou1" id="cta-final" class="cta-btn">אם תרצי להתחיל להגשים את החלום, לחצי ואספר לך הכל על תוכנית ההכשרה</a>'
+      + '<a href="https://talkwithkids.co.il/thankyou1" id="cta-final" class="cta-btn">אם תרצי להגשים את החלום, לחצי כאן ואחזור אליך לבדיקת התאמה</a>'
       + '</div>';
   }
 
@@ -596,8 +615,6 @@ function attachHandlers() {
     var i = parseInt(btn.getAttribute('data-ms-index'), 10);
     btn.onclick = function () { toggleMsOption(i); };
   });
-  el = document.getElementById('ms-other-input');
-  if (el) el.oninput = function (e) { state.msOtherText = e.target.value; };
   el = document.getElementById('btn-ms-continue');
   if (el) el.onclick = continueMultiselect;
 
