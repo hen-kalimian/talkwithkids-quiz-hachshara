@@ -212,17 +212,6 @@ function getRole(answers) {
 
 var KNOWN_ROLES = ['גננת', 'מורה', 'קלינאית תקשורת', 'מרפאה בעיסוק', 'סייעת'];
 
-function communityLabel(answers) {
-  var map = {
-    'גננת': 'גננות כמוך',
-    'מורה': 'מורות כמוך',
-    'קלינאית תקשורת': 'קלינאיות תקשורת כמוך',
-    'מרפאה בעיסוק': 'מרפאות בעיסוק כמוך',
-    'סייעת': 'סייעות כמוך'
-  };
-  return map[answers.role] || 'נשות חינוך וטיפול';
-}
-
 // מזהה תשובת "אחר" חופשית שמתארת סטטוס בלי הכנסה/משרה (אמא בבית, חופשת לידה
 // וכו') - כדי שהשאלות הבאות לא ישאלו על "שכר" למי שאין לה כזה.
 function isNonJobRoleText(answers) {
@@ -280,15 +269,15 @@ function getQuestion(index, answers) {
       var core = r.type === 'clinical'
         ? 'מול ילד שמתקשה, מרגיש לך טבעי למצוא את הדרך הנכונה בשבילו?'
         : 'במפגש עם הילדים, מרגיש לך טבעי לדבר איתם וללמד אותם?';
-      return { type: 'choice', id: 'confidence', title: prefix + core, options: [
-        'כן, ממש בטוחה בעצמי', 'לרוב כן, אבל לפעמים מתלבטת', 'לא תמיד, זה תלוי בילד', 'לא ממש, אני עדיין לומדת את זה'
+      return { type: 'slider', id: 'confidence', title: prefix + core, lowLabel: 'לא כל כך', highLabel: 'בטוחה לגמרי', options: [
+        'לא ממש, אני עדיין לומדת את זה', 'לא תמיד, זה תלוי בילד', 'לרוב כן, אבל לפעמים מתלבטת', 'כן, ממש בטוחה בעצמי'
       ]};
     }
     var appreciationCore = isNonJobRoleText(answers)
       ? 'את מרגישה שמעריכים אותך ואת המאמץ שלך היום, כמו שמגיע לך?'
       : 'האם מה שאת מרוויחה משקף את המאמץ וההשקעה שלך?';
-    return { type: 'choice', id: 'appreciation', title: prefix + appreciationCore, options: [
-      'כן, לגמרי', 'חלקית', 'לא, ואני מרגישה את זה הרבה', 'ממש לא, וזה מתסכל אותי'
+    return { type: 'slider', id: 'appreciation', title: prefix + appreciationCore, lowLabel: 'ממש לא', highLabel: 'כן, לגמרי', options: [
+      'ממש לא, וזה מתסכל אותי', 'לא, ואני מרגישה את זה הרבה', 'חלקית', 'כן, לגמרי'
     ]};
   }
   if (index === 4) {
@@ -316,9 +305,6 @@ function getQuestion(index, answers) {
     ]};
   }
   if (index === 5) {
-    return { type: 'slider', id: 'selfBelief', title: 'כמה עוד את יכולה להרוויח לדעתך מקבוצות הכנה ושיעורים פרטיים?' };
-  }
-  if (index === 6) {
     return { type: 'choice', id: 'income', title: 'כמה היית רוצה להוסיף להכנסה החודשית שלך?', options: [
       '1,000 ₪+ (רק כדי להתחיל, בקצב שלי)',
       '3,000 ₪ (קבוצת הכנה לכיתה א׳ אחת, שעה בשבוע)',
@@ -326,7 +312,7 @@ function getQuestion(index, answers) {
       'הכי הרבה שאפשר, אני רצינית בקטע הזה'
     ]};
   }
-  if (index === 7) {
+  if (index === 6) {
     var amt = incomeAmountLabel(answers);
     var isMaxIncome = answers.income === 'הכי הרבה שאפשר, אני רצינית בקטע הזה';
     var q8Title = isMaxIncome
@@ -340,12 +326,12 @@ function getQuestion(index, answers) {
       'אהיה גאה בעצמי שהצלחתי לשנות את זה'
     ]};
   }
-  if (index === 8) {
+  if (index === 7) {
     return { type: 'choice', id: 'pastFear', title: 'קרה לך בעבר שלמדת קורס או הכשרה, התלהבת, אבל בסוף לא ממש יישמת?', options: [
       'כן, כמה פעמים', 'לא, אני בדרך כלל מיישמת'
     ]};
   }
-  if (index === 9) {
+  if (index === 8) {
     return { type: 'choice', id: 'pastFearWhy', title: 'מה הכי גרם לזה שלא יישמת?', options: [
       'לא היה לי ליווי עסקי',
       'לא היה לי אומץ',
@@ -353,23 +339,14 @@ function getQuestion(index, answers) {
       'שילוב של כמה מהסיבות'
     ]};
   }
-  if (index === 10) {
+  if (index === 9) {
     return { type: 'choice', id: 'timeForMaterials', title: 'כמה זמן פנוי יש לך היום ליצור חומרי לימוד ותוכן לקבוצה?', options: [
       'יש לי זמן, אני אוהבת ליצור בעצמי',
       'קצת, אבל אני מעדיפה למקד את הזמן שלי בילדים ולא בהכנות',
       'אין לי זמן, אני מעדיפה שהכל יהיה מוכן וברמה גבוהה'
     ]};
   }
-  if (index === 11) {
-    var communityTitle = 'אם היית יכולה להיות חלק מקהילה של ' + communityLabel(answers) + ' שמקבלת ליווי מקצועי ועסקי, ובה אפשר לדבר בחופשיות על כסף ואתגרים, היית לוקחת את האפשרות?';
-    return { type: 'choice', id: 'community', title: communityTitle, options: [
-      'כן, ליווי וקהילה זה בדיוק מה שיחסר לי',
-      'כן, כי אני מאמינה שתמיד אפשר ללמוד ולהתפתח',
-      'זה יכול לעזור, אבל אני גם עצמאית',
-      'אני מעדיפה לעשות דברים לבד'
-    ]};
-  }
-  if (index === 12) {
+  if (index === 10) {
     var amt2 = incomeAmountLabel(answers);
     var isMaxIncome2 = answers.income === 'הכי הרבה שאפשר, אני רצינית בקטע הזה';
     var timingTitle = isMaxIncome2
@@ -387,13 +364,13 @@ function getQuestion(index, answers) {
   ]};
 }
 
-var TOTAL_STEPS = 14;
+var TOTAL_STEPS = 12;
 
 function isSkippedStep(index, answers) {
   if (index === 4) {
     return tenureBand(answers.tenure) === 'veteran' && apprBand(answers.appreciation) === 'unappreciated';
   }
-  if (index === 9) {
+  if (index === 8) {
     return answers.pastFear !== 'כן, כמה פעמים';
   }
   return false;
@@ -411,9 +388,6 @@ function buildResultText(base, answers) {
   var text = base;
   if (answers.timeForMaterials === 'אין לי זמן, אני מעדיפה שהכל יהיה מוכן וברמה גבוהה') {
     text += ' בדיוק בשביל זה כל החומרים בתוכנית כבר מוכנים ברמה גבוהה, שיעור אחרי שיעור: את לא בונה שום דבר מאפס.';
-  }
-  if (answers.community === 'כן, ליווי וקהילה זה בדיוק מה שיחסר לי') {
-    text += ' ואת לא עושה את זה לבד: יש קבוצת ליווי קהילתית ופגישות זום קבוצתיות לאורך כל השנה הראשונה.';
   }
   return text;
 }
@@ -478,9 +452,11 @@ function submitOther() {
 }
 
 function continueSlider() {
+  var q = getQuestion(state.qIndex, state.answers);
+  var value = q.options[state.sliderValue - 1];
   var answers = Object.assign({}, state.answers);
-  answers.selfBelief = state.sliderValue;
-  trackEvent('question_answered', { qid: 'selfBelief', value: state.sliderValue });
+  answers[q.id] = value;
+  trackEvent('question_answered', { qid: q.id, value: value });
   setState({ answers: answers, qIndex: nextValidIndex(state.qIndex + 1, answers), sliderValue: 2 });
 }
 
@@ -582,7 +558,7 @@ function render() {
       html += '<div style="text-align:center;padding:6px 0 4px;">'
         + '<div style="font-size:52px;margin-bottom:14px;">' + emoji + '</div>'
         + '<input type="range" id="slider-input" min="1" max="4" step="1" value="' + state.sliderValue + '">'
-        + '<div style="display:flex;justify-content:space-between;font-size:12px;color:#9B9484;margin-bottom:22px;"><span>קצת</span><span>המון</span></div>'
+        + '<div style="display:flex;justify-content:space-between;font-size:12px;color:#9B9484;margin-bottom:22px;"><span>' + esc(q.lowLabel || 'קצת') + '</span><span>' + esc(q.highLabel || 'המון') + '</span></div>'
         + '<button id="btn-slider-continue" class="cta-btn">המשך</button>'
         + '</div>';
     }
