@@ -44,19 +44,24 @@
     background: #FAFAF7; border: 2px solid #ECE7DE; border-radius: 16px;
     padding: 16px 18px; margin-bottom: 12px;
     font-family: 'Rubik', sans-serif; font-size: 16px; color: #3A342E;
-    cursor: pointer; transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+    cursor: pointer; transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease, background .12s ease;
   }
   .opt-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(58,52,46,.08); border-color: #C9DED6; }
-  .opt-btn:active { transform: translateY(0); }
-  .opt-btn.is-selected { border-color: #6FB79C; background: #EFF9F4; }
+  .opt-btn:active { transform: scale(0.98); }
+  .opt-btn.is-selected { border-color: #6FB79C; background: #EFF9F4; transform: scale(0.98); }
+  .opt-btn[disabled] { cursor: default; }
+  .opt-btn[disabled]:hover { transform: none; box-shadow: none; }
   .cta-btn {
     display: block; width: 100%; box-sizing: border-box; padding: 16px; border: none; border-radius: 16px;
     background: #6FB79C; color: #fff; text-decoration: none; text-align: center;
     font-family: 'Rubik', sans-serif; font-size: 17px; font-weight: 600; cursor: pointer;
-    transition: transform .12s ease, box-shadow .12s ease;
+    transition: transform .12s ease, box-shadow .12s ease, opacity .12s ease;
   }
   .cta-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(58,52,46,.14); }
   .cta-btn[disabled] { opacity: .6; cursor: default; transform: none; box-shadow: none; }
+  .cta-btn.is-selected { transform: scale(0.97); opacity: .9; box-shadow: none; }
+  .step-anim { animation: stepIn .22s ease-out; }
+  @keyframes stepIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
   .back-lnk {
     margin-top: 6px; background: none; border: none; color: #9B9484;
     font-family: 'Rubik', sans-serif; font-size: 14px; cursor: pointer; padding: 8px 2px;
@@ -100,7 +105,8 @@ function sendJson(url, data) {
   return fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data)
+    body: JSON.stringify(data),
+    keepalive: true
   }).catch(function (e) {
     console.warn('[quiz] fetch to webhook failed', url, e);
   });
@@ -173,8 +179,7 @@ var state = {
   msSelected: [false, false, false, false, false],
   leadName: '',
   leadPhone: '',
-  leadError: false,
-  leadSubmitting: false
+  leadError: false
 };
 
 function trackEvent(name, data) {
@@ -430,9 +435,23 @@ function getResult(answers) {
   return { title: base.title, text: buildResultText(base.text, answers) };
 }
 
+var justChangedStep = false;
+
 function setState(patch) {
+  var prevScreen = state.screen;
+  var prevQIndex = state.qIndex;
   Object.assign(state, patch);
+  justChangedStep = (state.screen !== prevScreen || state.qIndex !== prevQIndex);
   render();
+  if (justChangedStep) scrollToTop();
+}
+
+function scrollToTop() {
+  try {
+    window.scrollTo(0, 0);
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+  } catch (e) {}
 }
 
 function start() { setState({ screen: 'question', qIndex: 0 }); }
@@ -490,14 +509,21 @@ function submitLead() {
   var name = (state.leadName || '').trim();
   var phone = (state.leadPhone || '').trim();
   if (!name || !phone) { setState({ leadError: true }); return; }
-  setState({ leadSubmitting: true });
-  trackEvent('lead_captured', { name: name, phone: phone, answers: state.answers });
-  sendLeadToWebhook(name, phone, state.answers);
-  setState({ screen: 'result', leadSubmitting: false });
+  trackEvent('lead_form_filled', { name: name, phone: phone, answers: state.answers });
+  setState({ screen: 'result' });
 }
 
-function ctaClick() {
+// הוובהוק (וטופס הגיבוי) נשלחים רק כשהיא לוחצת על הכפתור הסופי במסך התוצאה,
+// לא כבר במילוי שם+טלפון - לפי בקשת חן. מי שממלאת שם+טלפון אבל לא לוחצת
+// על הכפתור הסופי לא הופכת לליד אצלה ב-CRM.
+function ctaClick(e) {
+  if (e && e.preventDefault) e.preventDefault();
+  var href = e && e.currentTarget ? e.currentTarget.href : 'https://talkwithkids.co.il/thankyou1';
   trackEvent('cta_clicked', { name: state.leadName, phone: state.leadPhone });
+  sendLeadToWebhook(state.leadName, state.leadPhone, state.answers);
+  var btn = document.getElementById('cta-final');
+  if (btn) btn.classList.add('is-selected');
+  setTimeout(function () { window.location.href = href; }, 220);
 }
 
 // ============================================================
@@ -512,10 +538,11 @@ function esc(s) {
 function render() {
   var app = document.getElementById('app');
   var html = '';
+  var stepAnim = justChangedStep ? ' step-anim' : '';
 
   if (state.screen === 'intro') {
     html += ''
-      + '<div style="text-align:center;padding:10px 0 2px;">'
+      + '<div class="' + stepAnim.trim() + '" style="text-align:center;padding:10px 0 2px;">'
       + '  <svg width="40" height="40" viewBox="0 0 40 40" fill="none" style="margin-bottom:18px;">'
       + '    <path d="M20 4 L23 16 L35 20 L23 24 L20 36 L17 24 L5 20 L17 16 Z" stroke="#6FB79C" stroke-width="2" stroke-linejoin="round" fill="none"></path>'
       + '  </svg>'
@@ -530,7 +557,7 @@ function render() {
     var progressPct = Math.round((state.qIndex / TOTAL_STEPS) * 100);
     var stepLabel = 'שאלה ' + (state.qIndex + 1) + ' מתוך ' + TOTAL_STEPS;
 
-    html += '<div>';
+    html += '<div class="' + stepAnim.trim() + '">';
     html += '<div style="height:6px;background:#F0EDE6;border-radius:6px;overflow:hidden;margin-bottom:8px;"><div style="height:100%;width:' + progressPct + '%;background:#6FB79C;border-radius:6px;transition:width .25s ease;"></div></div>';
     html += '<div style="font-size:13px;color:#9B9484;margin-bottom:22px;">' + esc(stepLabel) + '</div>';
     html += '<h2 style="font-size:20px;font-weight:600;line-height:1.55;margin:0 0 22px;color:#3A342E;">' + esc(q.title) + '</h2>';
@@ -575,18 +602,18 @@ function render() {
   }
 
   if (state.screen === 'leadform') {
-    html += '<div style="text-align:center;padding:10px 0;">'
+    html += '<div class="' + stepAnim.trim() + '" style="text-align:center;padding:10px 0;">'
       + '<h2 style="font-size:19px;font-weight:600;line-height:1.6;margin:0 0 22px;color:#3A342E;">כמעט סיימנו!<br>השאירי שם וטלפון ותקבלי את הניתוח האישי שלך</h2>'
       + '<input type="text" id="lead-name" class="field" placeholder="שם" value="' + esc(state.leadName) + '">'
       + '<input type="tel" id="lead-phone" class="field" placeholder="טלפון" value="' + esc(state.leadPhone) + '">'
       + (state.leadError ? '<div style="color:#C0546B;font-size:14px;margin-bottom:12px;">נא למלא שם וטלפון</div>' : '')
-      + '<button id="btn-lead-submit" class="cta-btn"' + (state.leadSubmitting ? ' disabled' : '') + '>חן תראי לי!</button>'
+      + '<button id="btn-lead-submit" class="cta-btn">חן תראי לי!</button>'
       + '</div>';
   }
 
   if (state.screen === 'result') {
     var result = getResult(state.answers);
-    html += '<div style="text-align:center;padding:8px 0;">'
+    html += '<div class="' + stepAnim.trim() + '" style="text-align:center;padding:8px 0;">'
       + '<svg width="36" height="36" viewBox="0 0 40 40" fill="none" style="margin-bottom:16px;"><path d="M20 4 L23 16 L35 20 L23 24 L20 36 L17 24 L5 20 L17 16 Z" stroke="#6FB79C" stroke-width="2" stroke-linejoin="round" fill="none"></path></svg>'
       + '<div style="font-size:14px;color:#9B9484;margin-bottom:6px;">הטיפוס שלך</div>'
       + '<h2 style="font-size:24px;font-weight:700;margin:0 0 18px;color:#3A342E;">' + esc(result.title) + '</h2>'
@@ -603,14 +630,22 @@ function attachHandlers() {
   var el;
 
   el = document.getElementById('btn-start');
-  if (el) el.onclick = start;
+  if (el) el.onclick = function () {
+    el.disabled = true;
+    el.classList.add('is-selected');
+    setTimeout(start, 200);
+  };
 
   var choiceBtns = document.querySelectorAll('[data-choice-index]');
   if (choiceBtns.length) {
     var q = getQuestion(state.qIndex, state.answers);
     choiceBtns.forEach(function (btn) {
       var i = parseInt(btn.getAttribute('data-choice-index'), 10);
-      btn.onclick = function () { selectOption(q.id, !!q.isRole, q.options[i]); };
+      btn.onclick = function () {
+        choiceBtns.forEach(function (b) { b.disabled = true; });
+        btn.classList.add('is-selected');
+        setTimeout(function () { selectOption(q.id, !!q.isRole, q.options[i]); }, 200);
+      };
     });
   }
 
@@ -622,12 +657,20 @@ function attachHandlers() {
     el.scrollIntoView({ block: 'center', behavior: 'smooth' });
   }
   el = document.getElementById('btn-other-submit');
-  if (el) el.onclick = submitOther;
+  if (el) el.onclick = function () {
+    el.disabled = true;
+    el.classList.add('is-selected');
+    setTimeout(submitOther, 200);
+  };
 
   el = document.getElementById('slider-input');
   if (el) el.oninput = function (e) { setState({ sliderValue: parseInt(e.target.value, 10) || 1 }); };
   el = document.getElementById('btn-slider-continue');
-  if (el) el.onclick = continueSlider;
+  if (el) el.onclick = function () {
+    el.disabled = true;
+    el.classList.add('is-selected');
+    setTimeout(continueSlider, 200);
+  };
 
   var msBtns = document.querySelectorAll('[data-ms-index]');
   msBtns.forEach(function (btn) {
@@ -635,7 +678,11 @@ function attachHandlers() {
     btn.onclick = function () { toggleMsOption(i); };
   });
   el = document.getElementById('btn-ms-continue');
-  if (el) el.onclick = continueMultiselect;
+  if (el) el.onclick = function () {
+    el.disabled = true;
+    el.classList.add('is-selected');
+    setTimeout(continueMultiselect, 200);
+  };
 
   el = document.getElementById('btn-back');
   if (el) el.onclick = goBack;
@@ -645,7 +692,14 @@ function attachHandlers() {
   el = document.getElementById('lead-phone');
   if (el) el.oninput = function (e) { state.leadPhone = e.target.value; state.leadError = false; };
   el = document.getElementById('btn-lead-submit');
-  if (el) el.onclick = submitLead;
+  if (el) el.onclick = function () {
+    var name = (state.leadName || '').trim();
+    var phone = (state.leadPhone || '').trim();
+    if (!name || !phone) { submitLead(); return; }
+    el.disabled = true;
+    el.classList.add('is-selected');
+    setTimeout(submitLead, 200);
+  };
 
   el = document.getElementById('cta-final');
   if (el) el.onclick = ctaClick;
